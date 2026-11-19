@@ -1,0 +1,138 @@
+# Builds an unsigned iOS .ipa on GitHub-hosted macOS (no Apple signing secrets).
+# Install on a personal iPhone with Sideloadly or AltStore on Windows/macOS.
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ios-unsigned-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    name: Unsigned IPA (sideload)
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Rust (iOS device target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Initialize Tauri iOS project
+        env:
+          CI: true
+        run: pnpm tauri ios init --ci
+
+      - name: Disable Xcode code signing (CI)
+        run: |
+          PBXPROJ="$(find src-tauri/gen/apple -name 'project.pbxproj' -print -quit)"
+          if [ -z "$PBXPROJ" ]; then
+            echo "Could not find project.pbxproj after ios init"
+            exit 1
+          fi
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+          root = Path("src-tauri/gen/apple")
+          files = list(root.rglob("project.pbxproj"))
+          if not files:
+              sys.exit("project.pbxproj not found")
+          path = files[0]
+          text = path.read_text()
+          injection = (
+              "CODE_SIGNING_ALLOWED = NO;\n"
+              "CODE_SIGNING_REQUIRED = NO;\n"
+              "CODE_SIGN_IDENTITY = \"\";\n"
+              "DEVELOPMENT_TEAM = \"\";\n"
+          )
+          if "CODE_SIGNING_ALLOWED = NO" not in text:
+              text = text.replace(
+                  "buildSettings = {",
+                  "buildSettings = {\n\t\t\t\t" + injection.replace("\n", "\n\t\t\t\t"),
+              )
+              path.write_text(text)
+          print(f"Patched signing settings in {path}")
+          PY
+
+      - name: Build unsigned iOS app
+        env:
+          CI: true
+          CODE_SIGNING_ALLOWED: NO
+          CODE_SIGNING_REQUIRED: NO
+          CODE_SIGN_IDENTITY: ''
+          DEVELOPMENT_TEAM: ''
+        run: pnpm tauri ios build --ci --target aarch64 --no-sign
+
+      - name: Package IPA if Tauri did not emit one
+        id: package
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/release-artifacts"
+          mkdir -p "$OUT"
+          IPA_SRC="$(find src-tauri/gen/apple -name '*.ipa' -type f 2>/dev/null | head -1 || true)"
+          DEST="$OUT/Hermes-Mobile-unsigned.ipa"
+          if [ -n "$IPA_SRC" ]; then
+            cp "$IPA_SRC" "$DEST"
+            echo "Copied Tauri-produced IPA: $IPA_SRC"
+          else
+            APP_PATH="$(find src-tauri/gen/apple -path '*Hermes Mobile.app' -type d 2>/dev/null | head -1 || true)"
+            if [ -z "$APP_PATH" ]; then
+              APP_PATH="$(find src-tauri/gen/apple -name '*.app' -type d 2>/dev/null | head -1 || true)"
+            fi
+            if [ -z "$APP_PATH" ]; then
+              echo "No .ipa or .app bundle found under src-tauri/gen/apple"
+              find src-tauri/gen/apple -maxdepth 8 \( -name '*.app' -o -name '*.ipa' \) -print || true
+              exit 1
+            fi
+            STAGING="$(mktemp -d)"
+            mkdir -p "$STAGING/Payload"
+            cp -R "$APP_PATH" "$STAGING/Payload/"
+            (cd "$STAGING" && zip -qr "$DEST" Payload)
+            echo "Packaged unsigned IPA from: $APP_PATH"
+          fi
+          echo "ipa=$DEST" >> "$GITHUB_OUTPUT"
+          ls -lh "$DEST"
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-mobile-ios-unsigned
+          path: release-artifacts/Hermes-Mobile-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
