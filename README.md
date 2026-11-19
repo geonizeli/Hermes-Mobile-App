@@ -66,6 +66,8 @@ pnpm tauri ios init
 pnpm tauri ios dev
 ```
 
+**No Mac day to day?** With a **free Apple ID**, you can build a sideloadable `.ipa` in GitHub Actions and install via AltStore—see [docs/ios-free-apple-id.md](docs/ios-free-apple-id.md).
+
 ## Current product capabilities
 
 - **Live Hermes mirror:** Reads actual Bot profiles, canonical Bot Chats, session rows, transcripts, models, timestamps, and previews from the running Hermes host.
