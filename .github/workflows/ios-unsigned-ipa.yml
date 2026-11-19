@@ -24,7 +24,7 @@ concurrency:
 jobs:
   build-ipa:
     name: Unsigned IPA (sideload)
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - name: Checkout
