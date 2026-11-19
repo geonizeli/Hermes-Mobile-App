@@ -59,12 +59,14 @@ pnpm tauri android dev
 
 ### iOS
 
-On macOS with Xcode:
+On macOS with Xcode (local development):
 
 ```bash
 pnpm tauri ios init
 pnpm tauri ios dev
 ```
+
+**iPhone without a Mac:** GitHub Actions builds an unsigned `.ipa` (no Apple signing secrets in the repo). Download the artifact from the [Build unsigned iOS IPA](.github/workflows/ios-unsigned-ipa.yml) workflow, then sign on Windows with [Sideloadly](https://sideloadly.io/) and your Apple ID. Step-by-step: [docs/ios-sideload-install.md](docs/ios-sideload-install.md).
 
 ## Current product capabilities
 
