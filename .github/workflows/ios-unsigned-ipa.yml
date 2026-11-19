@@ -5,6 +5,15 @@ name: Build unsigned iOS IPA
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/ios-unsigned-ipa.yml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'plugins/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
     tags:
       - 'v*'
 
