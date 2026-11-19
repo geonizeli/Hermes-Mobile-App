@@ -68,6 +68,8 @@ pnpm tauri ios dev
 
 **iPhone without a Mac:** GitHub Actions builds an unsigned `.ipa` (no Apple signing secrets in the repo). Download the artifact from the [Build unsigned iOS IPA](.github/workflows/ios-unsigned-ipa.yml) workflow, then sign on Windows with [Sideloadly](https://sideloadly.io/) and your Apple ID. Step-by-step: [docs/ios-sideload-install.md](docs/ios-sideload-install.md).
 
+**Optional (disabled by default):** CI can sign with a free Apple ID after a one-time Mac export—set variable `ENABLE_IOS_SIGNED_CI` and secrets; see [docs/ios-free-apple-id.md](docs/ios-free-apple-id.md).
+
 ## Current product capabilities
 
 - **Live Hermes mirror:** Reads actual Bot profiles, canonical Bot Chats, session rows, transcripts, models, timestamps, and previews from the running Hermes host.

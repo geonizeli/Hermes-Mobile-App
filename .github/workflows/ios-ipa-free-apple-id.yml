@@ -1,0 +1,108 @@
+# Build a sideload-friendly Hermes Mobile .ipa with Apple Development secrets in CI.
+# DISABLED by default: set repository variable ENABLE_IOS_SIGNED_CI=true and add secrets
+# (see docs/ios-free-apple-id.md). Primary path for most users: ios-unsigned-ipa.yml.
+
+name: iOS IPA (free Apple ID, CI signing)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-free-apple-id-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  disabled-placeholder:
+    name: Workflow disabled
+    if: vars.ENABLE_IOS_SIGNED_CI != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain how to enable
+        run: |
+          echo "::notice title=This workflow is disabled by default::"
+          echo "Set Settings → Secrets and variables → Actions → Variables → ENABLE_IOS_SIGNED_CI = true"
+          echo "and configure IOS_* / APPLE_DEVELOPMENT_TEAM secrets per docs/ios-free-apple-id.md."
+          echo "For no secrets and Windows sideload signing, use the Build unsigned iOS IPA workflow instead."
+
+  build-ios-ipa:
+    name: Build iOS (.ipa)
+    if: vars.ENABLE_IOS_SIGNED_CI == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    env:
+      CI: true
+
+    steps:
+      - name: Check required secrets
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          missing=0
+          for name in IOS_CERTIFICATE IOS_CERTIFICATE_PASSWORD IOS_MOBILE_PROVISION APPLE_DEVELOPMENT_TEAM; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub secret: $name (see docs/ios-free-apple-id.md)"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize iOS Xcode project (if not committed)
+        run: |
+          if [ ! -d src-tauri/gen/apple ]; then
+            pnpm exec tauri ios init --ci
+          fi
+
+      - name: Build signed .ipa
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: pnpm exec tauri ios build --export-method debugging
+
+      - name: Locate .ipa
+        id: ipa
+        run: |
+          IPA_PATH=$(find src-tauri/gen/apple -name "*.ipa" -type f 2>/dev/null | head -1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "::error::No .ipa found under src-tauri/gen/apple"
+            exit 1
+          fi
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+          ls -lh "$IPA_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-mobile-ios-ipa
+          path: ${{ steps.ipa.outputs.ipa_path }}
+          if-no-files-found: error

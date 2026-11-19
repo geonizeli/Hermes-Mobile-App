@@ -37,3 +37,7 @@ Official gateway guidance: [Hermes multi-connection desktop](https://hermes-agen
 ## AltStore (optional)
 
 You can use [AltStore](https://altstore.io/) on device instead of Sideloadly on Windows; the same unsigned IPA applies. AltStore can refresh sideloads on a schedule while on the same Wi‑Fi as AltServer.
+
+## Optional: CI-signed IPA (disabled by default)
+
+If you later configure Apple Development secrets in GitHub and set `ENABLE_IOS_SIGNED_CI=true`, you can use the **iOS IPA (free Apple ID, CI signing)** workflow instead. See [ios-free-apple-id.md](ios-free-apple-id.md).
