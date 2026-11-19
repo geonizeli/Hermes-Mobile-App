@@ -10,7 +10,7 @@ No Apple distribution certificates or repository secrets are required for the bu
 2. Click **Run workflow** (branch `main`) and wait for the job to finish (first run may take a while).
 3. Under **Artifacts**, download **hermes-mobile-ios-unsigned** (`Hermes-Mobile-unsigned.ipa`).
 
-Tagged releases (`v*`) also trigger this workflow; artifacts appear on the workflow run for that tag.
+Pushes to **`main`** that touch the app or this workflow also trigger a build automatically. Tagged releases (`v*`) do too. You can always start one manually from **Actions → Run workflow**.
 
 ## 2. Sign and install (Windows)
 
