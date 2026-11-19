@@ -12,6 +12,8 @@ No Apple distribution certificates or repository secrets are required for the bu
 
 Pushes to **`main`** that touch the app or this workflow also trigger a build automatically. Tagged releases (`v*`) do too. You can always start one manually from **Actions → Run workflow**.
 
+**macOS runner queues:** GitHub sometimes cannot assign a hosted Mac runner for about 15 minutes and cancels the job with *The job was not acquired by Runner*. That is a capacity issue, not a problem with your commit. Use **Re-run all jobs** on the failed run, or wait—after this workflow lands on `main`, **Retry unsigned iOS IPA (runner capacity)** re-runs the build automatically (up to five attempts).
+
 ## 2. Sign and install (Windows)
 
 1. Install [iTunes](https://www.apple.com/itunes/download/win64/) (or Apple Devices) so Apple mobile drivers are available.
