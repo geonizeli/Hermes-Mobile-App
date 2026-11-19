@@ -5,8 +5,7 @@ src-tauri/target/
 .env
 .env.*
 !.env.example
-# Local AI-assistant instructions (never commit)
-AGENTS.md
+# Personal local assistant overlays (never commit). Team policy lives in committed AGENTS.md.
 SOUL.md
 .hermes.md
 CLAUDE.md
